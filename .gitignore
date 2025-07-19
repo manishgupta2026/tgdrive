@@ -1,0 +1,53 @@
+# Node modules
+node_modules/
+
+# Log files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Directory for compiled output
+dist/
+build/
+.next/    # Next.js build output
+
+# Temporary files
+tmp/
+.tmp/
+
+# Local .env files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Dependency directories
+pocketbase/pb_data/
+pocketbase/pocketbase.exe # Ignore the executable if it's downloaded and not built from source
+
+# IDE and editor files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Test coverage
+coverage/
+
+# Other
+*.iml
+*.swp
+.DS_Store
