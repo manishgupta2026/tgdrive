@@ -1,18 +1,9 @@
 'use client';
 import { useState, useMemo } from 'react';
+import Image from 'next/image'; // ✅ Optimized image import
 import { 
-  FiMoon, 
-  FiSun, 
-  FiBell, 
-  FiShield, 
-  FiUser, 
-  FiSettings, 
-  FiInfo, 
-  FiTrash2,
-  FiDownload,
-  FiCheck,
-  FiX,
-  FiAlertTriangle
+  FiMoon, FiSun, FiBell, FiShield, FiUser, FiSettings, FiInfo, 
+  FiTrash2, FiDownload, FiCheck, FiX, FiAlertTriangle
 } from 'react-icons/fi';
 import { getBackendUrl } from "@/utils/getBackendUrl";
 import API_CONFIG from "@/config/api";
@@ -39,20 +30,16 @@ export default function Settings({
     security: true
   });
 
-  // Generate default avatar URL using DiceBear API
   const defaultAvatarUrl = useMemo(() => {
     const seed = user?.username || user?.telegram_id || 'default';
     return `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}&backgroundColor=b6e3f4,c0aede,d1d4f9`;
   }, [user?.username, user?.telegram_id]);
 
-  // Storage quota calculation
-  const storageLimit = user?.storage_limit || 0; // 0 means unlimited
+  const storageLimit = user?.storage_limit || 0;
   const storageUsed = user?.storage_used || 0;
   const storagePercentage = storageLimit > 0 ? Math.min((storageUsed / storageLimit) * 100, 100) : 0;
-  const storageColor = storagePercentage > 90 ? 'bg-red-500' : 
-                      storagePercentage > 70 ? 'bg-yellow-500' : 'bg-blue-500';
+  const storageColor = storagePercentage > 90 ? 'bg-red-500' : storagePercentage > 70 ? 'bg-yellow-500' : 'bg-blue-500';
 
-  // Change Telegram Channel
   const handleChangeChannel = async () => {
     if (!channelId.trim()) {
       setError('Channel ID is required');
@@ -78,14 +65,13 @@ export default function Settings({
       } else {
         setError(data.error || 'Failed to update channel.');
       }
-    } catch (e) {
+    } catch {
       setError('Network error. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Change Display Name
   const handleChangeDisplayName = async () => {
     if (!displayName.trim()) {
       setError('Display name is required');
@@ -99,7 +85,7 @@ export default function Settings({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          user_id:  user.telegram_id,
+          user_id: user.telegram_id,
           first_name: displayName
         })
       });
@@ -110,24 +96,18 @@ export default function Settings({
       } else {
         setError(data.error || 'Failed to update display name.');
       }
-    } catch (e) {
+    } catch {
       setError('Network error. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Export Data
-  const handleExportData = async () => {
-    try {
-      window.open(`${getBackendUrl()}/api/user/export-data?user_id=${user.id || user.telegram_id}`, '_blank');
-      showNotification('Data export started!', 'success');
-    } catch (e) {
-      showNotification('Failed to export data.', 'error');
-    }
+  const handleExportData = () => {
+    window.open(`${getBackendUrl()}/api/user/export-data?user_id=${user.id || user.telegram_id}`, '_blank');
+    showNotification('Data export started!', 'success');
   };
 
-  // Delete Account
   const handleDeleteAccount = async () => {
     setDeleting(true);
     try {
@@ -142,7 +122,7 @@ export default function Settings({
       } else {
         showNotification('Failed to delete account.', 'error');
       }
-    } catch (e) {
+    } catch {
       showNotification('Network error.', 'error');
     } finally {
       setDeleting(false);
@@ -150,34 +130,24 @@ export default function Settings({
     }
   };
 
-  // Toggle Theme
   const handleThemeToggle = () => {
     const newMode = !darkMode;
     setDarkMode(newMode);
-    showNotification(`Switched to ${newMode ? 'dark' : 'light'} mode`, 'success');
     document.documentElement.classList.toggle('dark', newMode);
+    showNotification(`Switched to ${newMode ? 'dark' : 'light'} mode`, 'success');
   };
 
-  // Update Notification Preferences
   const handleNotificationToggle = (key) => {
-    const newPrefs = {
-      ...notificationPrefs,
-      [key]: !notificationPrefs[key]
-    };
+    const newPrefs = { ...notificationPrefs, [key]: !notificationPrefs[key] };
     setNotificationPrefs(newPrefs);
     showNotification('Notification preferences updated!', 'success');
-    
-    // In a real app, you would save these preferences to the backend
-    // saveNotificationPrefs(newPrefs);
   };
 
   const TabButton = ({ id, icon: Icon, label }) => (
     <button
       onClick={() => setActiveTab(id)}
       className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-        activeTab === id
-          ? 'bg-blue-600 text-white shadow-md' 
-          : 'hover:bg-slate-700 text-slate-300'
+        activeTab === id ? 'bg-blue-600 text-white shadow-md' : 'hover:bg-slate-700 text-slate-300'
       }`}
     >
       <Icon className="w-5 h-5" />
@@ -191,28 +161,27 @@ export default function Settings({
       <div className="bg-slate-800 rounded-2xl p-4 sm:p-6 border border-slate-700 shadow-lg">
         <div className="flex flex-col md:flex-row items-center gap-4">
           <div className="relative">
-            <img 
-              src={user?.photo_url ||  `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.first_name[0] || 'User')}&background=6366f1&color=fff`} 
-              alt="Profile" 
-              className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-2 border-blue-500 shadow-lg"
+            <Image
+              src={user?.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.first_name[0] || 'U')}&background=6366f1&color=fff`}
+              alt="Profile"
+              width={80}
+              height={80}
+              className="rounded-full border-2 border-blue-500 shadow-lg w-16 h-16 sm:w-20 sm:h-20"
               onError={(e) => {
                 e.target.onerror = null;
                 e.target.src = defaultAvatarUrl;
               }}
+              unoptimized
             />
             <button
               onClick={handleThemeToggle}
               className="absolute -bottom-1 -right-1 p-2 bg-slate-800 rounded-full border border-slate-700 hover:bg-slate-700 transition-colors shadow-md"
               title="Toggle theme"
             >
-              {darkMode ? (
-                <FiSun className="w-4 h-4 text-yellow-400" />
-              ) : (
-                <FiMoon className="w-4 h-4 text-slate-400" />
-              )}
+              {darkMode ? <FiSun className="w-4 h-4 text-yellow-400" /> : <FiMoon className="w-4 h-4 text-slate-400" />}
             </button>
           </div>
-          
+
           <div className="flex-1 min-w-0 text-center md:text-left">
             <div className="font-bold text-white text-lg sm:text-xl truncate">
               {user?.first_name} {user?.last_name}
@@ -220,20 +189,14 @@ export default function Settings({
             <div className="text-xs sm:text-sm text-slate-400 truncate">
               @{user?.username || 'no-username'} • ID: {user?.telegram_id}
             </div>
-            
-            {/* Storage Usage Bar */}
             <div className="mt-3">
               <div className="flex justify-between text-xs sm:text-sm text-slate-400 mb-1">
-                <span>
-                  Storage: {(storageUsed / (1024 * 1024)).toFixed(2)} MB
-                </span>
-                <span>
-                  {storageLimit > 0 ? `${(storageLimit / (1024 * 1024)).toFixed(0)} MB` : 'Unlimited'}
-                </span>
+                <span>Storage: {(storageUsed / (1024 * 1024)).toFixed(2)} MB</span>
+                <span>{storageLimit > 0 ? `${(storageLimit / (1024 * 1024)).toFixed(0)} MB` : 'Unlimited'}</span>
               </div>
               {storageLimit > 0 && (
                 <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
-                  <div 
+                  <div
                     className={`h-2 rounded-full transition-all duration-500 ${storageColor}`}
                     style={{ width: `${storagePercentage}%` }}
                   />
@@ -244,7 +207,7 @@ export default function Settings({
         </div>
       </div>
 
-      {/* Settings Navigation */}
+      {/* Settings Tabs */}
       <div className="bg-slate-800 rounded-2xl p-2 sm:p-3 border border-slate-700 shadow-md overflow-x-auto">
         <div className="flex gap-2 min-w-max">
           <TabButton id="profile" icon={FiUser} label="Profile" />
@@ -255,12 +218,9 @@ export default function Settings({
 
       {/* Settings Content */}
       <div className="bg-slate-800 rounded-2xl p-4 sm:p-6 border border-slate-700 shadow-lg">
-        {/* Profile Tab */}
         {activeTab === 'profile' && (
           <div className="space-y-6">
             <h2 className="text-xl font-semibold text-white mb-4">Profile Settings</h2>
-            
-            {/* Display Name */}
             <div>
               <label className="block text-slate-300 mb-2 font-medium">Display Name</label>
               <div className="flex flex-col sm:flex-row gap-2">
@@ -268,7 +228,7 @@ export default function Settings({
                   type="text"
                   className="flex-1 px-4 py-2 rounded-lg bg-slate-700 text-white border border-slate-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-colors"
                   value={displayName}
-                  onChange={e => setDisplayName(e.target.value)}
+                  onChange={(e) => setDisplayName(e.target.value)}
                   placeholder="Enter your display name"
                   disabled={loading}
                 />
@@ -277,7 +237,7 @@ export default function Settings({
                   disabled={loading || displayName === user?.first_name}
                   className={`px-4 py-2 rounded-lg font-medium transition-all ${
                     loading || displayName === user?.first_name
-                      ? 'bg-slate-600 cursor-not-allowed opacity-70' 
+                      ? 'bg-slate-600 cursor-not-allowed opacity-70'
                       : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md'
                   }`}
                 >
@@ -286,7 +246,6 @@ export default function Settings({
               </div>
             </div>
 
-            {/* Channel ID */}
             <div>
               <label className="block text-slate-300 mb-2 font-medium">Telegram Channel ID</label>
               <div className="flex flex-col sm:flex-row gap-2">
@@ -294,7 +253,7 @@ export default function Settings({
                   type="text"
                   className="flex-1 px-4 py-2 rounded-lg bg-slate-700 text-white border border-slate-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-colors"
                   value={channelId}
-                  onChange={e => setChannelId(e.target.value)}
+                  onChange={(e) => setChannelId(e.target.value)}
                   placeholder="e.g. -1001234567890"
                   disabled={loading}
                 />
@@ -303,7 +262,7 @@ export default function Settings({
                   disabled={loading || !channelId}
                   className={`px-4 py-2 rounded-lg font-medium transition-all ${
                     loading || !channelId
-                      ? 'bg-slate-600 cursor-not-allowed opacity-70' 
+                      ? 'bg-slate-600 cursor-not-allowed opacity-70'
                       : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md'
                   }`}
                 >
@@ -317,11 +276,9 @@ export default function Settings({
           </div>
         )}
 
-        {/* Security Tab */}
         {activeTab === 'security' && (
           <div className="space-y-6">
             <h2 className="text-xl font-semibold text-white mb-4">Security Settings</h2>
-            
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <button
                 onClick={handleExportData}
@@ -330,7 +287,6 @@ export default function Settings({
                 <FiDownload className="w-5 h-5" />
                 Export My Data
               </button>
-              
               <button
                 onClick={() => setShowDeleteConfirm(true)}
                 className="flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white font-medium py-3 px-4 rounded-lg transition-colors shadow-md"
@@ -340,7 +296,6 @@ export default function Settings({
               </button>
             </div>
 
-            {/* Delete Confirmation Modal */}
             {showDeleteConfirm && (
               <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                 <div className="bg-slate-800 rounded-2xl p-6 border border-red-600/50 max-w-md w-full shadow-xl">
@@ -348,11 +303,9 @@ export default function Settings({
                     <FiAlertTriangle className="text-red-500 w-6 h-6" />
                     <h3 className="text-xl font-bold text-white">Delete Account</h3>
                   </div>
-                  
                   <p className="text-slate-300 mb-6">
                     This action cannot be undone. All your files and data will be permanently deleted.
                   </p>
-                  
                   <div className="flex gap-3 justify-end">
                     <button
                       onClick={() => setShowDeleteConfirm(false)}
@@ -386,17 +339,15 @@ export default function Settings({
           </div>
         )}
 
-        {/* Preferences Tab */}
         {activeTab === 'preferences' && (
           <div className="space-y-6">
             <h2 className="text-xl font-semibold text-white mb-4">Notification Preferences</h2>
-            
             <div className="space-y-3">
               {Object.entries(notificationPrefs).map(([key, enabled]) => {
                 const label = key.replace(/([A-Z])/g, ' $1').trim();
                 return (
                   <div 
-                    key={key} 
+                    key={key}
                     className="flex items-center justify-between p-4 bg-slate-700/50 hover:bg-slate-700 rounded-lg transition-colors cursor-pointer"
                     onClick={() => handleNotificationToggle(key)}
                   >
@@ -422,10 +373,9 @@ export default function Settings({
           </div>
         )}
 
-        {/* Status Messages */}
         {(error || success) && (
           <div className={`mt-4 p-3 rounded-lg border ${
-            error ? 'bg-red-900/50 border-red-700 text-red-400' : 
+            error ? 'bg-red-900/50 border-red-700 text-red-400' :
             'bg-green-900/50 border-green-700 text-green-400'
           }`}>
             <div className="flex items-center gap-2">

@@ -1,5 +1,5 @@
 'use client';
-// import FileUploader from '../../../components/FileUploader';
+import FileUploader from '../../../components/FileUploader';
 
 const UploadView = ({ user, getBackendUrl, showNotification, onUploadComplete, isMobile }) => {
   const handleUploadSuccess = () => {
@@ -28,7 +28,7 @@ const UploadView = ({ user, getBackendUrl, showNotification, onUploadComplete, i
             Upload to Cloud
           </h1>
           <p className="text-sm sm:text-base text-slate-300 max-w-2xl mx-auto leading-relaxed">
-            Securely store your files using Telegram's infrastructure. 
+            Securely store your files using Telegram&apos;s infrastructure. 
             Drag and drop files or click to browse from your device.
           </p>
         </div>
@@ -57,7 +57,7 @@ const UploadView = ({ user, getBackendUrl, showNotification, onUploadComplete, i
               <h3 className="text-base sm:text-lg font-semibold text-white">Secure Storage</h3>
             </div>
             <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-              Your files are encrypted and stored securely using Telegram's robust infrastructure.
+              Your files are encrypted and stored securely using Telegram&apos;s robust infrastructure.
             </p>
           </div>
 

@@ -1,10 +1,16 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 export default function TelegramLogin({ onLogin }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState(null);
   const [debugInfo, setDebugInfo] = useState('');
+  const isLoadedRef = useRef(isLoaded);
+
+  // Keep ref updated when state changes
+  useEffect(() => {
+    isLoadedRef.current = isLoaded;
+  }, [isLoaded]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -79,7 +85,7 @@ export default function TelegramLogin({ onLogin }) {
 
         // Add a timeout to detect if widget doesn't load
         setTimeout(() => {
-          if (!isLoaded) {
+          if (!isLoadedRef.current) {
             console.warn('⚠️ Telegram widget taking longer than expected to load');
             setDebugInfo('Widget loading timeout - check bot configuration');
           }

@@ -1,5 +1,6 @@
 'use client';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import Image from 'next/image'; // Import Next.js Image component
 import ChannelSync from './ChannelSync';
 import { getBackendUrl } from "@/utils/getBackendUrl";
 import API_CONFIG from "@/config/api";
@@ -27,17 +28,8 @@ export default function DashboardOverview({
   const [channelLoading, setChannelLoading] = useState(false);
   const [channelError, setChannelError] = useState("");
 
-  useEffect(() => {
-    calculateStats();
-  }, [files]);
-
-  // useEffect(() => {
-  //   if (user && user.channel_setup_complete === false) {
-  //     setShowChannelModal(true);
-  //   }
-  // }, [user]);
-
-  const calculateStats = () => {
+  // Wrap calculateStats in useCallback to fix dependency warning
+  const calculateStats = useCallback(() => {
     const photos = files.filter(f => f.type?.startsWith('image/'));
     const videos = files.filter(f => f.type?.startsWith('video/'));
     const documents = files.filter(f => !f.type?.startsWith('image/') && !f.type?.startsWith('video/'));
@@ -54,7 +46,11 @@ export default function DashboardOverview({
       documents: documents.length,
       recentUploads
     });
-  };
+  }, [files]);
+
+  useEffect(() => {
+    calculateStats();
+  }, [calculateStats]); // Now properly depends on calculateStats
 
   const getFileIcon = (type) => {
     if (type?.startsWith('image/')) return '🖼️';
@@ -100,11 +96,11 @@ export default function DashboardOverview({
       action: () => onViewChange('documents')
     }
   ];
-   const defaultAvatarUrl = useMemo(() => {
-      const seed = user?.username || user?.telegram_id || 'default';
-      return `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}&backgroundColor=b6e3f4,c0aede,d1d4f9`;
-    }, [user?.username, user?.telegram_id]);
-
+  
+  const defaultAvatarUrl = useMemo(() => {
+    const seed = user?.username || user?.telegram_id || 'default';
+    return `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}&backgroundColor=b6e3f4,c0aede,d1d4f9`;
+  }, [user?.username, user?.telegram_id]);
 
   return (
     <div className="space-y-6">
@@ -120,16 +116,23 @@ export default function DashboardOverview({
             </p>
           </div>
           <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center text-3xl">
-          <img 
-              src={user?.photo_url ||  `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.first_name[0] || 'User')}&background=6366f1&color=fff`} 
-              alt="" 
-              className="w-20 h-20 sm:w-20 sm:h-20 rounded-full border-2 border-blue-500 shadow-lg"
-              onError={(e) => {
-                e.target.onerror = null;
-                e.target.src =  `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.first_name || 'User')}&background=6366f1&color=fff`;
-              }}
-            />
-            {/* {user?.photo_url || '👤'} */}
+            {user?.photo_url ? (
+              <Image
+                src={user.photo_url}
+                alt="User Avatar"
+                width={80}
+                height={80}
+                className="w-20 h-20 sm:w-20 sm:h-20 rounded-full border-2 border-blue-500 shadow-lg"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.first_name || 'User')}&background=6366f1&color=fff`;
+                }}
+              />
+            ) : (
+              <div className="w-20 h-20 sm:w-20 sm:h-20 rounded-full border-2 border-blue-500 shadow-lg flex items-center justify-center bg-indigo-500 text-white">
+                {user?.first_name?.[0] || 'U'}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -265,10 +268,13 @@ export default function DashboardOverview({
                 >
                   <div className="text-2xl p-2 bg-slate-800 rounded-lg flex items-center justify-center w-12 h-12 overflow-hidden">
                     {file.type?.startsWith('image/') && file.thumbnailUrl ? (
-                      <img
+                      <Image
                         src={file.thumbnailUrl}
                         alt={file.name}
+                        width={40}
+                        height={40}
                         className="object-cover w-10 h-10 rounded"
+                        unoptimized
                       />
                     ) : (
                       getFileIcon(file.type)

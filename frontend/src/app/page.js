@@ -176,7 +176,7 @@ export default function Home() {
               <span className="text-white">Powered by Telegram</span>
             </h1>
             <p className="text-lg md:text-xl text-gray-300 mb-10 max-w-2xl mx-auto">
-              Store, manage, and access your files securely using Telegram's robust infrastructure. 
+              Store, manage, and access your files securely using Telegram&apos;s robust infrastructure. 
               Unlimited storage, enterprise-grade security, and completely free.
             </p>
 
@@ -273,7 +273,7 @@ export default function Home() {
               Why Choose Telegram Drive?
             </h2>
             <p className="text-lg text-gray-400 max-w-2xl mx-auto">
-              Built on Telegram's battle-tested infrastructure with features designed for everyone
+              Built on Telegram&apos;s battle-tested infrastructure with features designed for everyone
             </p>
           </div>
 
@@ -538,7 +538,7 @@ export default function Home() {
                 </span>
               </div>
               <p className="text-gray-400">
-                Secure cloud storage powered by Telegram's infrastructure.
+                Secure cloud storage powered by Telegram&apos;s infrastructure.
               </p>
             </div>
 
@@ -574,7 +574,7 @@ export default function Home() {
           </div>
 
           <div className="mt-16 pt-6 border-t border-gray-800 text-center text-gray-500 text-sm">
-            © {new Date().getFullYear()} Telegram Drive. Built with ❤️ using Telegram's API.
+            © {new Date().getFullYear()} Telegram Drive. Built with ❤️ using Telegram&apos;s API.
             <br />
             Not affiliated with Telegram Messenger LLP.
           </div>

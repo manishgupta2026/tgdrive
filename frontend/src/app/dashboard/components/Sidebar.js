@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image"; // ✅ Added import
 import { getBackendUrl } from "@/utils/getBackendUrl";
 import API_CONFIG from "@/config/api";
 
@@ -32,19 +33,19 @@ export default function Sidebar({
     { id: "settings", label: "Settings", icon: "⚙️", count: null },
   ];
 
-  // Handle scroll effect for header styling
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
     };
-
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  const fallbackAvatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.first_name || "User")}&background=6366f1&color=fff`;
+  const profileImageUrl = user?.photo_url || fallbackAvatarUrl;
+
   return (
     <>
-      {/* Mobile overlay */}
       {sidebarOpen && isMobile && (
         <div
           className="fixed inset-0 z-30 bg-black/70 backdrop-blur-sm lg:hidden"
@@ -54,12 +55,14 @@ export default function Sidebar({
 
       <aside
         className={`
-        fixed lg:relative inset-y-0 left-0 z-40 w-full max-w-[280px] bg-gradient-to-b from-slate-900 to-slate-800 border-r border-slate-800 transform transition-all duration-300
-        ${sidebarOpen || !isMobile ? "translate-x-0" : "-translate-x-full"}
-        lg:translate-x-0
-        ${isScrolled ? "lg:border-slate-700" : "lg:border-transparent"}
-        shadow-xl lg:shadow-none
-      `}
+          fixed lg:relative inset-y-0 left-0 z-40 w-full max-w-[280px]
+          bg-gradient-to-b from-slate-900 to-slate-800 border-r border-slate-800
+          transform transition-all duration-300
+          ${sidebarOpen || !isMobile ? "translate-x-0" : "-translate-x-full"}
+          lg:translate-x-0
+          ${isScrolled ? "lg:border-slate-700" : "lg:border-transparent"}
+          shadow-xl lg:shadow-none
+        `}
       >
         <div className="flex flex-col h-full">
           {/* Header */}
@@ -170,22 +173,22 @@ export default function Sidebar({
             </div>
           </nav>
 
-          {/* User info */}
+          {/* ✅ User Info with <Image /> */}
           <div className="p-4 border-t border-slate-800">
             <div className="flex items-center gap-3">
               <div className="relative">
-                <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-full flex items-center justify-center text-xl text-white">
-                  <img
-                    src={user?.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.first_name[0] || 'User')}&background=6366f1&color=fff`}
-                    alt="Profile"
-                    className="w-10 h-10 sm:w-10 sm:h-10 rounded-full border-2  shadow-lg"
-                    onError={(e) => {
-                      e.target.onerror = null;
-                      e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.first_name || 'User')}&background=6366f1&color=fff`;
-                    }}
-                  />
-                  {/* {user?.first_name?.charAt(0) || "👤"} */}
-                </div>
+                <Image
+                  src={profileImageUrl}
+                  alt="Profile"
+                  width={40}
+                  height={40}
+                  className="rounded-full border-2 shadow-lg w-10 h-10 sm:w-10 sm:h-10"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = fallbackAvatarUrl;
+                  }}
+                  unoptimized // required for external image URLs
+                />
                 <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-slate-900"></div>
               </div>
               <div className="flex-1 min-w-0">
@@ -198,17 +201,12 @@ export default function Sidebar({
               </div>
               <button
                 onClick={async () => {
-                  // Call backend logout endpoint
                   try {
                     await fetch(`${getBackendUrl()}${API_CONFIG.ENDPOINTS.logout}`, {
                       method: "POST",
                       credentials: "include",
                     });
-                  } catch (e) {
-                    // Optionally handle error
-                  }
-
-                  // Redirect to login
+                  } catch (e) {}
                   window.location.href = "/";
                 }}
                 className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors group relative"

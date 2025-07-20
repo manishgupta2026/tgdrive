@@ -1,5 +1,6 @@
 'use client';
 import { useEffect } from 'react';
+import Image from 'next/image'; // Import Next.js Image component
 
 export default function Lightbox({ 
   isOpen, 
@@ -66,11 +67,22 @@ export default function Lightbox({
 
       {/* Image */}
       <div className="max-w-full max-h-full flex items-center justify-center">
-        <img
-          src={currentFile.previewUrl}
-          alt={currentFile.name}
-          className="max-w-full max-h-[80vh] object-contain rounded-lg mx-auto"
-        />
+        {currentFile.previewUrl ? (
+          <Image
+            src={currentFile.previewUrl}
+            alt={currentFile.name || 'Preview'}
+            width={0}
+            height={0}
+            sizes="100vw"
+            className="max-w-full max-h-[80vh] w-auto h-auto object-contain rounded-lg mx-auto"
+            style={{ width: 'auto', height: 'auto' }}
+            priority
+          />
+        ) : (
+          <div className="bg-gray-800 border-2 border-dashed border-gray-700 rounded-xl w-full h-64 flex items-center justify-center">
+            <span className="text-gray-500">No preview available</span>
+          </div>
+        )}
       </div>
 
       {/* Image info */}
