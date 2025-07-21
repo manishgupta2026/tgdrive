@@ -1,6 +1,5 @@
 'use client';
 import { useState, useMemo } from 'react';
-import Image from 'next/image'; // ✅ Next.js optimized image import
 import SortSelector from './SortSelector';
 import { getBackendUrl } from "@/utils/getBackendUrl";
 import API_CONFIG from "@/config/api";
@@ -140,13 +139,11 @@ export default function FileGrid({
                   📷
                 </div>
               ) : (
-                <Image
-                  src={file.thumbnailUrl || file.previewUrl || `${getBackendUrl()}/api/thumbnail/${file.telegram_file_id}`}
+                // Use regular img tag instead of Next Image
+                <img
+                  src={file.thumbnailUrl || file.previewUrl || `${getBackendUrl()}/api/telegram-file/${file.telegram_file_id}`}
                   alt={file.name}
-                  width={500}
-                  height={500}
-                  layout="responsive"
-                  objectFit="contain"
+                  className="w-full h-full object-contain"
                   onError={() => handleImageError(file.id)}
                 />
               )}
@@ -161,7 +158,7 @@ export default function FileGrid({
                   >
                     {selectedFiles.includes(file.id) && (
                       <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293..."></path>
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"></path>
                       </svg>
                     )}
                   </button>
@@ -170,7 +167,7 @@ export default function FileGrid({
                     title="Download"
                     onClick={e => {
                       e.stopPropagation();
-                      window.open(`${getBackendUrl()}${API_CONFIG.ENDPOINTS.download}/${file.telegram_file_id}`, '_blank');
+                      window.open(`${getBackendUrl()}${API_CONFIG.ENDPOINTS.download}/${file.id}`, '_blank');
                     }}
                   >
                     ⬇
@@ -204,10 +201,15 @@ export default function FileGrid({
             <div className="aspect-square bg-slate-700 flex items-center justify-center relative overflow-hidden">
               {file.type?.startsWith('video/') ? (
                 <>
-                  <video
-                    src={`${getBackendUrl()}/api/stream/${file.telegram_file_id}`}
+                  {/* Use thumbnail image instead of video element */}
+                  <img
+                    src={file.thumbnailUrl || `${getBackendUrl()}/api/telegram-file/${file.telegram_file_id}`}
+                    alt={file.name}
                     className="w-full h-full object-cover"
-                    poster={file.thumbnailUrl || `${getBackendUrl()}/api/thumbnail/${file.telegram_file_id}`}
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center text-4xl">🎥</div>';
+                    }}
                   />
                   <div className="absolute inset-0 bg-black/20 flex items-center justify-center pointer-events-none">
                     <div className="w-12 h-12 bg-black/50 rounded-full flex items-center justify-center backdrop-blur-sm">
@@ -222,7 +224,7 @@ export default function FileGrid({
                 <div className="absolute top-2 left-2">
                   <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
                     <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293..."></path>
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"></path>
                     </svg>
                   </div>
                 </div>
@@ -231,7 +233,7 @@ export default function FileGrid({
                 <button
                   onClick={e => {
                     e.stopPropagation();
-                    window.open(`${getBackendUrl()}${API_CONFIG.ENDPOINTS.download}/${file.telegram_file_id}`, '_blank');
+                    window.open(`${getBackendUrl()}${API_CONFIG.ENDPOINTS.download}/${file.id}`, '_blank');
                   }}
                   className="w-8 h-8 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-black/70 transition-colors"
                   title="Download"
@@ -272,10 +274,15 @@ export default function FileGrid({
           <div className="aspect-square bg-slate-700 flex items-center justify-center relative overflow-hidden">
             {file.type?.startsWith('video/') ? (
               <>
-                <video
-                  src={`${getBackendUrl()}/api/stream/${file.telegram_file_id}`}
+                {/* Use thumbnail image instead of video element */}
+                <img
+                  src={file.thumbnailUrl || `${getBackendUrl()}/api/telegram-file/${file.telegram_file_id}`}
+                  alt={file.name}
                   className="w-full h-full object-cover"
-                  poster={file.thumbnailUrl || `${getBackendUrl()}/api/thumbnail/${file.telegram_file_id}`}
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center text-4xl">🎥</div>';
+                  }}
                 />
                 <div className="absolute inset-0 bg-black/20 flex items-center justify-center pointer-events-none">
                   <div className="w-12 h-12 bg-black/50 rounded-full flex items-center justify-center backdrop-blur-sm">
@@ -290,7 +297,7 @@ export default function FileGrid({
               <div className="absolute top-2 left-2">
                 <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
                   <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293..."></path>
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"></path>
                   </svg>
                 </div>
               </div>
@@ -301,7 +308,7 @@ export default function FileGrid({
                   e.stopPropagation();
                   const url = file.telegram_link
                     ? file.telegram_link
-                    : `${getBackendUrl()}${API_CONFIG.ENDPOINTS.download}/${file.telegram_file_id}`;
+                    : `${getBackendUrl()}${API_CONFIG.ENDPOINTS.download}/${file.id}`;
                   window.open(url, '_blank');
                 }}
                 className="w-8 h-8 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-black/70 transition-colors"

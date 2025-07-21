@@ -8,6 +8,7 @@ const rateLimit = require('express-rate-limit');
 const fetch = require('node-fetch');
 const session = require('express-session');
 const { Client, Databases, ID, Query } = require('node-appwrite');
+const crypto = require('crypto');
 require('dotenv').config();
 
 console.log('🚀 Starting Telegram Drive Backend (Appwrite Edition)...');
@@ -58,7 +59,7 @@ if (!fs.existsSync(CONFIG.TEMP_DIR)) {
 }
 
 // ========================================
-// MIDDLEWARE (Unchanged from original)
+// MIDDLEWARE
 // ========================================
 app.use(cors({
   origin: (origin, callback) => callback(null, true),
@@ -93,7 +94,7 @@ const upload = multer({
 });
 
 // ========================================
-// HELPER FUNCTIONS (Appwrite Version)
+// HELPER FUNCTIONS (UPDATED)
 // ========================================
 
 // Find user by Telegram ID
@@ -111,8 +112,13 @@ const findUserByTelegramId = async (telegramId) => {
   }
 };
 
-// Get assigned bot for a user
-const getUserAssignedBot = async (botId) => {
+// Generate a valid Appwrite ID (20-char hex)
+const generateAppwriteId = () => {
+  return crypto.randomBytes(10).toString('hex'); // 20-character hex string
+};
+
+// Get bot document directly without query
+const getBotDocument = async (botId) => {
   try {
     return await databases.getDocument(
       CONFIG.APPWRITE.DB_ID,
@@ -120,13 +126,25 @@ const getUserAssignedBot = async (botId) => {
       botId
     );
   } catch (error) {
-    throw new Error('Bot not found: ' + error.message);
+    console.error(`❌ Bot fetch error for ID ${botId}:`, error.message);
+    throw new Error(`Bot not found: ${botId}`);
   }
 };
 
-// Create TelegramBot instance for a user
+// Create TelegramBot instance for a user (FIXED)
 const getTelegramBotForUser = async (user) => {
-  const assignedBot = await getUserAssignedBot(user.assigned_bot);
+  if (!user.assigned_bot) {
+    throw new Error('No bot assigned to user');
+  }
+  
+  // Handle both string ID and expanded object
+  const botId = user.assigned_bot.$id || user.assigned_bot;
+  
+  if (!botId || typeof botId !== 'string') {
+    throw new Error(`Invalid bot ID: ${botId}`);
+  }
+  
+  const assignedBot = await getBotDocument(botId);
   return new TelegramBot(assignedBot.bot_token, { polling: false });
 };
 
@@ -149,7 +167,7 @@ function buildTelegramLink(channel_id, message_id) {
 }
 
 // ========================================
-// ROUTES (Appwrite Version)
+// ROUTES
 // ========================================
 
 // Health check
@@ -162,7 +180,7 @@ app.get('/api/test', (req, res) => {
   });
 });
 
-// User authentication & bot assignment
+// User authentication with persistent bot assignment (UPDATED)
 app.post('/api/auth/telegram', async (req, res) => {
   try {
     const { id, first_name, last_name, username, photo_url } = req.body;
@@ -170,10 +188,9 @@ app.post('/api/auth/telegram', async (req, res) => {
 
     // Find user by telegram_id
     let user = await findUserByTelegramId(id);
+    let isNewUser = false;
 
-    // Bot assignment logic
-    let assignedBot;
-    if (!user || !user.assigned_bot) {
+    if (!user) {
       // Get all active bots
       const botsResponse = await databases.listDocuments(
         CONFIG.APPWRITE.DB_ID,
@@ -186,40 +203,29 @@ app.post('/api/auth/telegram', async (req, res) => {
       }
       
       // Randomly pick a bot
-      assignedBot = botsResponse.documents[Math.floor(Math.random() * botsResponse.documents.length)];
-    } else {
-      assignedBot = await getUserAssignedBot(user.assigned_bot);
-    }
-
-    // User data structure
-    const userData = {
-      telegram_id: id.toString(),
-      first_name,
-      last_name,
-      username,
-      photo_url,
-      assigned_bot: assignedBot.$id,
-      assigned_bot_username: assignedBot.bot_username,
-      storage_used: user?.storage_used || 0,
-      private_channel_id: user?.private_channel_id || null,
-      channel_setup_complete: user?.channel_setup_complete || false
-    };
-
-    // Update or create user
-    if (user) {
-      user = await databases.updateDocument(
-        CONFIG.APPWRITE.DB_ID,
-        CONFIG.APPWRITE.COLLECTIONS.USERS,
-        user.$id,
-        userData
-      );
-    } else {
+      const assignedBot = botsResponse.documents[Math.floor(Math.random() * botsResponse.documents.length)];
+      
+      // Create new user with a valid ID
       user = await databases.createDocument(
         CONFIG.APPWRITE.DB_ID,
         CONFIG.APPWRITE.COLLECTIONS.USERS,
-        ID.unique(),
-        userData
+        generateAppwriteId(),
+        {
+          telegram_id: id.toString(),
+          first_name,
+          last_name,
+          username,
+          photo_url,
+          assigned_bot: assignedBot.$id, // Store only the ID string
+          assigned_bot_username: assignedBot.bot_username,
+          storage_used: 0,
+          private_channel_id: null,
+          channel_setup_complete: false
+        }
       );
+      
+      isNewUser = true;
+      console.log(`👤 Created new user with bot: ${assignedBot.$id}`);
     }
 
     req.session.userId = user.telegram_id;
@@ -228,55 +234,58 @@ app.post('/api/auth/telegram', async (req, res) => {
       success: true,
       user: {
         ...user,
-        assigned_bot_username: assignedBot.bot_username
+        is_new_user: isNewUser
       }
     });
   } catch (error) {
     console.error('❌ Auth error:', error);
+    
+    // Handle specific Appwrite errors
+    if (error.code === 409) { // Document already exists
+      // Retry with a new ID
+      return res.status(400).json({ error: 'Please try logging in again' });
+    }
+    
     res.status(500).json({ error: 'Authentication failed' });
   }
 });
 
-// Get user files
-app.get('/api/files', async (req, res) => {
+// Register user private channel
+app.post('/api/user/register-channel', async (req, res) => {
   try {
-    const { user_id } = req.query;
-    if (!user_id) return res.status(400).json({ error: 'User ID required' });
+    const { user_id, channel_id } = req.body;
+    console.log('📝 Register channel request:', { user_id, channel_id });
+    
+    if (!user_id || !channel_id) {
+      return res.status(400).json({ error: "Missing user_id or channel_id" });
+    }
     
     const user = await findUserByTelegramId(user_id);
-    if (!user) return res.json([]);
+    if (!user) {
+      console.log('❌ User not found for telegram_id:', user_id);
+      return res.status(404).json({ error: 'User not found. Please login again.' });
+    }
     
-    const filesResponse = await databases.listDocuments(
+    // Update user record
+    const updatedUser = await databases.updateDocument(
       CONFIG.APPWRITE.DB_ID,
-      CONFIG.APPWRITE.COLLECTIONS.FILES,
-      [
-        Query.equal('user_id', user.$id),
-        Query.equal('is_deleted', false)
-      ]
+      CONFIG.APPWRITE.COLLECTIONS.USERS,
+      user.$id,
+      {
+        private_channel_id: channel_id,
+        channel_setup_complete: true
+      }
     );
     
-    const transformedFiles = filesResponse.documents.map(file => ({
-      id: file.$id,
-      name: file.original_name,
-      size: file.file_size,
-      type: file.mime_type,
-      uploadedAt: file.$createdAt,
-      telegram_file_id: file.telegram_file_id,
-      thumbnailUrl: file.mime_type?.startsWith('image/')
-        ? `/api/telegram-file/${file.telegram_file_id}`
-        : null,
-      previewUrl: `/api/telegram-file/${file.telegram_file_id}`,
-      telegram_link: file.telegram_link || buildTelegramLink(file.channel_id, file.telegram_message_id)
-    }));
-    
-    res.json(transformedFiles);
+    console.log('✅ Updated user with channel:', updatedUser.$id);
+    res.json({ success: true, user: updatedUser });
   } catch (error) {
-    console.error('❌ Files error:', error);
-    res.status(500).json({ error: 'Failed to fetch files' });
+    console.error('❌ Register channel error:', error);
+    res.status(500).json({ error: 'Failed to register channel: ' + error.message });
   }
 });
 
-// Upload file
+// Upload file with direct bot access
 app.post('/api/upload', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file provided' });
@@ -325,7 +334,7 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     const savedFile = await databases.createDocument(
       CONFIG.APPWRITE.DB_ID,
       CONFIG.APPWRITE.COLLECTIONS.FILES,
-      ID.unique(),
+      generateAppwriteId(),
       fileData
     );
     
@@ -355,7 +364,82 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
   } catch (error) {
     console.error('❌ Upload error:', error);
     cleanupTempFile(req.file?.path);
-    res.status(500).json({ error: 'Upload failed' });
+    
+    // Handle specific bot errors
+    if (error.message.includes('Bot not found') || error.message.includes('Invalid documentId')) {
+      return res.status(500).json({
+        error: 'Bot configuration error. Please try logging in again.',
+        reauth_required: true
+      });
+    }
+    
+    res.status(500).json({ error: 'Upload failed: ' + error.message });
+  }
+});
+
+// Get user files
+app.get('/api/files', async (req, res) => {
+  try {
+    const { user_id } = req.query;
+    if (!user_id) return res.status(400).json({ error: 'User ID required' });
+    
+    const user = await findUserByTelegramId(user_id);
+    if (!user) return res.json([]);
+    
+    const filesResponse = await databases.listDocuments(
+      CONFIG.APPWRITE.DB_ID,
+      CONFIG.APPWRITE.COLLECTIONS.FILES,
+      [
+        Query.equal('user_id', user.$id),
+        Query.equal('is_deleted', false)
+      ]
+    );
+    
+    const transformedFiles = filesResponse.documents.map(file => ({
+      id: file.$id,
+      name: file.original_name,
+      size: file.file_size,
+      type: file.mime_type,
+      uploadedAt: file.$createdAt,
+      telegram_file_id: file.telegram_file_id,
+      thumbnailUrl: file.mime_type?.startsWith('image/')
+        ? `/api/telegram-file/${file.telegram_file_id}`
+        : null,
+      previewUrl: `/api/telegram-file/${file.telegram_file_id}`,
+      telegram_link: file.telegram_link || buildTelegramLink(file.channel_id, file.telegram_message_id)
+    }));
+    
+    res.json(transformedFiles);
+  } catch (error) {
+    console.error('❌ Files error:', error);
+    res.status(500).json({ error: 'Failed to fetch files' });
+  }
+});
+
+// Get current user info
+app.get('/api/user/me', async (req, res) => {
+  try {
+    const userId = req.session.userId;
+    if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+    
+    const user = await findUserByTelegramId(userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    
+    res.json({
+      id: user.$id,
+      telegram_id: user.telegram_id,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      username: user.username,
+      photo_url: user.photo_url,
+      storage_used: user.storage_used || 0,
+      private_channel_id: user.private_channel_id || null,
+      channel_setup_complete: user.channel_setup_complete || false,
+      assigned_bot_username: user.assigned_bot_username
+    });
+  } catch (error) {
+    console.error('❌ /api/user/me error:', error);
+    res.status(500).json({ error: 'Failed to fetch user info' });
   }
 });
 
@@ -430,140 +514,6 @@ app.get('/api/telegram-file/:fileId', async (req, res) => {
   }
 });
 
-// Storage info
-app.get('/api/storage/info/:userId', async (req, res) => {
-  try {
-    const user = await findUserByTelegramId(req.params.userId);
-    if (!user) return res.status(404).json({ error: 'User not found' });
-    
-    res.json({
-      user_id: req.params.userId,
-      storage: {
-        used: user.storage_used || 0,
-        used_gb: (user.storage_used / (1024 * 1024 * 1024)).toFixed(2),
-        limit: null,
-        limit_text: 'Unlimited',
-        provider: 'Telegram'
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Register user private channel
-app.post('/api/user/register-channel', async (req, res) => {
-  try {
-    const { user_id, channel_id } = req.body;
-    console.log('📝 Register channel request:', { user_id, channel_id });
-    
-    if (!user_id || !channel_id) {
-      return res.status(400).json({ error: "Missing user_id or channel_id" });
-    }
-    
-    const user = await findUserByTelegramId(user_id);
-    if (!user) {
-      console.log('❌ User not found for telegram_id:', user_id);
-      return res.status(404).json({ error: 'User not found. Please login again.' });
-    }
-    
-    // Update user record
-    const updatedUser = await databases.updateDocument(
-      CONFIG.APPWRITE.DB_ID,
-      CONFIG.APPWRITE.COLLECTIONS.USERS,
-      user.$id,
-      {
-        private_channel_id: channel_id,
-        channel_setup_complete: true
-      }
-    );
-    
-    console.log('✅ Updated user with channel:', updatedUser.$id);
-    res.json({ success: true, user: updatedUser });
-  } catch (error) {
-    console.error('❌ Register channel error:', error);
-    res.status(500).json({ error: 'Failed to register channel: ' + error.message });
-  }
-});
-
-// Get current user info
-app.get('/api/user/me', async (req, res) => {
-  try {
-    const userId = req.session.userId;
-    if (!userId) return res.status(401).json({ error: 'Not authenticated' });
-    
-    const user = await findUserByTelegramId(userId);
-    if (!user) return res.status(404).json({ error: 'User not found' });
-    
-    // Get bot username
-    let assigned_bot_username = user.assigned_bot_username;
-    if (!assigned_bot_username && user.assigned_bot) {
-      const bot = await getUserAssignedBot(user.assigned_bot);
-      assigned_bot_username = bot.bot_username;
-    }
-    
-    res.json({
-      id: user.$id,
-      telegram_id: user.telegram_id,
-      first_name: user.first_name,
-      last_name: user.last_name,
-      username: user.username,
-      photo_url: user.photo_url,
-      storage_used: user.storage_used || 0,
-      private_channel_id: user.private_channel_id || null,
-      channel_setup_complete: user.channel_setup_complete || false,
-      assigned_bot_username
-    });
-  } catch (error) {
-    console.error('❌ /api/user/me error:', error);
-    res.status(500).json({ error: 'Failed to fetch user info' });
-  }
-});
-
-// Get all active bot usernames
-app.get('/api/bots/usernames', async (req, res) => {
-  try {
-    const botsResponse = await databases.listDocuments(
-      CONFIG.APPWRITE.DB_ID,
-      CONFIG.APPWRITE.COLLECTIONS.BOTS,
-      [Query.equal('is_active', true)]
-    );
-    
-    const usernames = botsResponse.documents.map(bot => bot.bot_username);
-    res.json({ usernames });
-  } catch (error) {
-    console.error('❌ /api/bots/usernames error:', error);
-    res.status(500).json({ error: 'Failed to fetch bot usernames' });
-  }
-});
-
-// Manual user sync
-app.post('/api/user/sync-channel/:userId', async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const { limit } = req.body;
-    
-    // Implementation similar to original but using Appwrite
-    // (Would require the same sync logic but with Appwrite DB calls)
-    
-    res.json({
-      success: true,
-      message: 'Sync initiated (implementation would go here)'
-    });
-  } catch (error) {
-    console.error('❌ User channel sync error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ========================================
-// STARTUP
-// ========================================
-app.listen(CONFIG.PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${CONFIG.PORT}`);
-  console.log(`💾 Using Appwrite: ${CONFIG.APPWRITE.ENDPOINT}`);
-});
-
 // Logout endpoint
 app.post('/api/logout', (req, res) => {
   req.session.destroy(err => {
@@ -574,4 +524,12 @@ app.post('/api/logout', (req, res) => {
     res.clearCookie('connect.sid');
     res.json({ success: true, message: 'Logged out successfully' });
   });
+});
+
+// ========================================
+// STARTUP
+// ========================================
+app.listen(CONFIG.PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${CONFIG.PORT}`);
+  console.log(`💾 Using Appwrite: ${CONFIG.APPWRITE.ENDPOINT}`);
 });
