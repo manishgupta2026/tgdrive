@@ -214,6 +214,7 @@ app.get('/api/bots/usernames', async (req, res) => {
 
 // User authentication with persistent bot assignment (UPDATED)
 app.post('/api/auth/telegram', async (req, res) => {
+  console.log('🔎 Incoming /api/auth/telegram req.body:', req.body);
   try {
     const { id, first_name, last_name, username, photo_url, hash, auth_date } = req.body;
     if (!id || !hash) return res.status(400).json({ error: 'Telegram ID and hash are required' });
