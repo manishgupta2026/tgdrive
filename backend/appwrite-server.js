@@ -212,6 +212,69 @@ app.get('/api/bots/usernames', async (req, res) => {
   }
 });
 
+// Telegram Login Widget GET handler (for data-auth-url)
+app.get('/api/auth/telegram', async (req, res) => {
+  console.log('🔎 Incoming GET /api/auth/telegram req.query:', req.query);
+  try {
+    const { id, first_name, last_name, username, photo_url, hash, auth_date } = req.query;
+    if (!id || !hash) return res.status(400).json({ error: 'Telegram ID and hash are required' });
+
+    // Verify Telegram login
+    const isValid = checkTelegramAuth(req.query, process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN);
+    if (!isValid) return res.status(401).json({ error: 'Authentication failed' });
+
+    // Find user by telegram_id
+    let user = await findUserByTelegramId(id);
+    let isNewUser = false;
+
+    if (!user) {
+      // Get all active bots
+      const botsResponse = await databases.listDocuments(
+        CONFIG.APPWRITE.DB_ID,
+        CONFIG.APPWRITE.COLLECTIONS.BOTS,
+        [Query.equal('is_active', true)]
+      );
+
+      if (!botsResponse.documents.length) {
+        return res.status(500).json({ error: 'No active bots available' });
+      }
+
+      // Randomly pick a bot
+      const assignedBot = botsResponse.documents[Math.floor(Math.random() * botsResponse.documents.length)];
+
+      // Create new user with a valid ID
+      user = await databases.createDocument(
+        CONFIG.APPWRITE.DB_ID,
+        CONFIG.APPWRITE.COLLECTIONS.USERS,
+        generateAppwriteId(),
+        {
+          telegram_id: id.toString(),
+          first_name,
+          last_name,
+          username,
+          photo_url,
+          assigned_bot: assignedBot.$id,
+          assigned_bot_username: assignedBot.bot_username,
+          storage_used: 0,
+          private_channel_id: null,
+          channel_setup_complete: false
+        }
+      );
+
+      isNewUser = true;
+      console.log(`👤 Created new user with bot: ${assignedBot.$id}`);
+    }
+
+    req.session.userId = user.telegram_id;
+
+    // Redirect to your frontend dashboard or send a success response
+    return res.redirect(`https://tgdrive-lemon.vercel.app/dashboard?login=success`);
+  } catch (error) {
+    console.error('❌ Auth error (GET):', error);
+    res.status(500).json({ error: 'Authentication failed' });
+  }
+});
+
 // User authentication with persistent bot assignment (UPDATED)
 app.post('/api/auth/telegram', async (req, res) => {
   console.log('🔎 Incoming /api/auth/telegram req.body:', req.body);
