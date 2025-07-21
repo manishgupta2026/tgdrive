@@ -38,7 +38,7 @@ export default function TelegramLogin({ onLogin }) {
         script.setAttribute('data-telegram-login', 'tesyt3233_bot');
         script.setAttribute('data-size', 'large');
         script.setAttribute('data-radius', '10');
-        script.setAttribute('data-onauth', 'onTelegramAuth(user)');
+        script.setAttribute('data-auth-url', 'https://tgdrive-mugz.onrender.com/api/auth/telegram');
         script.setAttribute('data-request-access', 'write');
         script.async = true;
 
