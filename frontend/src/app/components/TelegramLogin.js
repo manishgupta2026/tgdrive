@@ -63,15 +63,6 @@ export default function TelegramLogin({ onLogin }) {
           setDebugInfo('Script load failed');
         };
 
-        // Add the auth function to window
-        window.onTelegramAuth = function(user) {
-          console.log('🎉 Telegram auth successful:', user);
-          setDebugInfo('Auth successful!');
-          if (onLogin) {
-            onLogin(user);
-          }
-        };
-
         const container = document.querySelector('#telegram-login-widget');
         if (container) {
           container.appendChild(script);
