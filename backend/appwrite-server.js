@@ -9,6 +9,23 @@ const fetch = require('node-fetch');
 const session = require('express-session');
 const { Client, Databases, ID, Query } = require('node-appwrite');
 const crypto = require('crypto');
+
+function checkTelegramAuth(data, botToken) {
+  const authData = { ...data };
+  const hash = authData.hash;
+  delete authData.hash;
+
+  const dataCheckString = Object.keys(authData)
+    .sort()
+    .map(key => `${key}=${authData[key]}`)
+    .join('\n');
+
+  const secret = crypto.createHash('sha256').update(botToken).digest();
+  const hmac = crypto.createHmac('sha256', secret).update(dataCheckString).digest('hex');
+
+  return hmac === hash;
+}
+
 require('dotenv').config();
 
 console.log('🚀 Starting Telegram Drive Backend (Appwrite Edition)...');
@@ -180,8 +197,6 @@ app.get('/api/test', (req, res) => {
   });
 });
 
-// ...existing code...
-
 // Get all bot usernames (for frontend)
 app.get('/api/bots/usernames', async (req, res) => {
   try {
@@ -197,12 +212,15 @@ app.get('/api/bots/usernames', async (req, res) => {
   }
 });
 
-// ...existing code...
 // User authentication with persistent bot assignment (UPDATED)
 app.post('/api/auth/telegram', async (req, res) => {
   try {
-    const { id, first_name, last_name, username, photo_url } = req.body;
-    if (!id) return res.status(400).json({ error: 'Telegram ID is required' });
+    const { id, first_name, last_name, username, photo_url, hash, auth_date } = req.body;
+    if (!id || !hash) return res.status(400).json({ error: 'Telegram ID and hash are required' });
+
+    // Verify Telegram login
+    const isValid = checkTelegramAuth(req.body, process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN);
+    if (!isValid) return res.status(401).json({ error: 'Authentication failed' });
 
     // Find user by telegram_id
     let user = await findUserByTelegramId(id);
