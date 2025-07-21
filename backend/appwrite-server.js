@@ -180,6 +180,24 @@ app.get('/api/test', (req, res) => {
   });
 });
 
+// ...existing code...
+
+// Get all bot usernames (for frontend)
+app.get('/api/bots/usernames', async (req, res) => {
+  try {
+    const botsResponse = await databases.listDocuments(
+      CONFIG.APPWRITE.DB_ID,
+      CONFIG.APPWRITE.COLLECTIONS.BOTS
+    );
+    const usernames = botsResponse.documents.map(bot => bot.bot_username);
+    res.json({ usernames });
+  } catch (error) {
+    console.error('❌ Failed to fetch bot usernames:', error);
+    res.status(500).json({ error: 'Failed to fetch bot usernames' });
+  }
+});
+
+// ...existing code...
 // User authentication with persistent bot assignment (UPDATED)
 app.post('/api/auth/telegram', async (req, res) => {
   try {
